@@ -189,11 +189,12 @@ export default function(PDFJS) {
 
 		this.renderPage = function(rotate) {
 			if ( pdfRender !== null ) {
-
 				if ( canceling )
 					return;
 				canceling = true;
-				pdfRender.cancel();
+				pdfRender.promise.catch(function(err) {
+					emitEvent('error', err);
+				});
 				return;
 			}
 
@@ -229,20 +230,19 @@ export default function(PDFJS) {
 			linkService.setViewer(viewer);
 
 			pendingOperation = pendingOperation.then(function() {
-
-				var getAnnotationsOperation =
-				pdfPage.getAnnotations({ intent: 'display' })
-				.then(function(annotations) {
-
-					PDFJS.AnnotationLayer.render({
-						viewport: viewport.clone({ dontFlip: true }),
-						div: annotationLayerElt,
-						annotations: annotations,
-						page: pdfPage,
-						linkService: linkService,
-						renderInteractiveForms: false
+				if(pdfPage)
+					var getAnnotationsOperation =
+					pdfPage.getAnnotations({ intent: 'display' })
+					.then(function(annotations) {
+						PDFJS.AnnotationLayer.render({
+							viewport: viewport.clone({ dontFlip: true }),
+							div: annotationLayerElt,
+							annotations: annotations,
+							page: pdfPage,
+							linkService: linkService,
+							renderInteractiveForms: false
+						});
 					});
-				});
 
 				var pdfRenderOperation =
 				pdfRender.promise
@@ -264,7 +264,7 @@ export default function(PDFJS) {
 					emitEvent('error', err);
 				}.bind(this))
 
-				return Promise.all([getAnnotationsOperation, pdfRenderOperation]);
+				return Promise.all([getAnnotationsOperation, pdfRenderOperation]).catch(()=>{});
 			}.bind(this));
 		}
 
@@ -294,7 +294,7 @@ export default function(PDFJS) {
 				return;
 
 			pendingOperation = pendingOperation.then(function() {
-
+				console.log(pdfDoc)
 				return pdfDoc.getPage(pageNumber);
 			})
 			.then(function(page) {
